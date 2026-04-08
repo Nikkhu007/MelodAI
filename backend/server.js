@@ -1,7 +1,7 @@
 require('dotenv').config();
 require('express-async-errors');
-
 const express = require('express');
+const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
@@ -23,7 +23,7 @@ connectDB();
 app.use('/api/youtube/stream', cors({ origin: '*' }));
 
 // All other routes: only allow frontend origin
-const cors = require('cors')
+
 
 app.use(cors({
   origin: [
