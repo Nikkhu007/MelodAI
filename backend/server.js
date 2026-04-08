@@ -24,11 +24,15 @@ connectDB();
 app.use('/api/youtube/stream', cors({ origin: '*' }));
 
 // All other routes: only allow frontend origin
-app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:5173',
-  credentials: true,
-}));
+const cors = require('cors')
 
+app.use(cors({
+  origin: [
+    "http://localhost:5173",
+    "https://melod-ai-virid.vercel.app"
+  ],
+  credentials: true
+}))
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
   // Allow audio content to load cross-origin
