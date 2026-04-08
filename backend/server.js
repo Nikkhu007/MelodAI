@@ -26,10 +26,7 @@ app.use('/api/youtube/stream', cors({ origin: '*' }));
 
 
 app.use(cors({
-  origin: [
-    "http://localhost:5173",
-    "https://melod-ai-virid.vercel.app"
-  ],
+  origin: true,
   credentials: true
 }))
 app.use(helmet({
@@ -48,7 +45,7 @@ if (process.env.NODE_ENV === 'development') app.use(morgan('dev'));
 
 app.get('/health', (req, res) => res.json({ status: 'ok', service: 'melodai-backend' }));
 
-app.use('/api/auth/login',            authRoutes);
+app.use('/api/auth',            authRoutes);
 app.use('/api/songs',           songRoutes);
 app.use('/api/playlists',       playlistRoutes);
 app.use('/api/users',           userRoutes);
