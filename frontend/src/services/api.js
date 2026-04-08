@@ -1,7 +1,7 @@
 import axios from 'axios'
 
 const api = axios.create({
-baseURL: "https://melodai-1.onrender.com",
+baseURL: "https://melodai-1.onrender.com/api",
   timeout: 15000,
 })
 

@@ -2,7 +2,6 @@ require('dotenv').config();
 require('express-async-errors');
 
 const express = require('express');
-const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
@@ -49,7 +48,7 @@ if (process.env.NODE_ENV === 'development') app.use(morgan('dev'));
 
 app.get('/health', (req, res) => res.json({ status: 'ok', service: 'melodai-backend' }));
 
-app.use('/api/auth',            authRoutes);
+app.use('/api/auth/login',            authRoutes);
 app.use('/api/songs',           songRoutes);
 app.use('/api/playlists',       playlistRoutes);
 app.use('/api/users',           userRoutes);
