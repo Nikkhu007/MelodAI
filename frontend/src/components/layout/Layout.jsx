@@ -1,23 +1,30 @@
+import { useEffect } from 'react'
 import { Outlet } from 'react-router-dom'
+import { AnimatePresence } from 'framer-motion'
 import Sidebar from './Sidebar'
 import Player from '../player/Player'
 import TopBar from './TopBar'
 import useUIStore from '../../store/uiStore'
-import AddToPlaylistModal from '../playlists/AddToPlaylistModal'
+import AddToPlaylistModal  from '../playlists/AddToPlaylistModal'
 import CreatePlaylistModal from '../playlists/CreatePlaylistModal'
-import MoodPickerModal from '../ui/MoodPickerModal'
-import UploadModal from '../songs/UploadModal'
+import MoodPickerModal     from '../ui/MoodPickerModal'
+import UploadModal         from '../songs/UploadModal'
+import ShareModal          from '../ui/ShareModal'
+import ToastContainer      from '../ui/ToastContainer'
 
 export default function Layout() {
-  const { sidebarOpen, modals } = useUIStore()
+  const { modals, theme } = useUIStore()
+
+  // Apply theme class to <html> on mount and change
+  useEffect(() => {
+    document.documentElement.classList.toggle('light', theme === 'light')
+  }, [theme])
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#0a0a0f]">
-      {/* Sidebar */}
+    <div className="flex h-screen overflow-hidden" style={{ background: 'var(--color-bg)' }}>
       <Sidebar />
 
-      {/* Main content */}
-      <div className={`flex flex-col flex-1 min-w-0 transition-all duration-300`}>
+      <div className="flex flex-col flex-1 min-w-0">
         <TopBar />
         <main
           className="flex-1 overflow-y-auto pb-28 px-4 md:px-8 page-enter"
@@ -27,14 +34,17 @@ export default function Layout() {
         </main>
       </div>
 
-      {/* Persistent bottom player */}
       <Player />
 
-      {/* Modals */}
-      {modals.addToPlaylist && <AddToPlaylistModal />}
-      {modals.createPlaylist && <CreatePlaylistModal />}
-      {modals.moodPicker && <MoodPickerModal />}
-      {modals.uploadSong && <UploadModal />}
+      <AnimatePresence>
+        {modals.addToPlaylist  && <AddToPlaylistModal  key="addPl" />}
+        {modals.createPlaylist && <CreatePlaylistModal key="createPl" />}
+        {modals.moodPicker     && <MoodPickerModal     key="mood" />}
+        {modals.uploadSong     && <UploadModal         key="upload" />}
+        {modals.shareModal     && <ShareModal          key="share" />}
+      </AnimatePresence>
+
+      <ToastContainer />
     </div>
   )
 }

@@ -1,18 +1,16 @@
 import { NavLink, useNavigate } from 'react-router-dom'
-import {
-  Home, Search, Library, Heart, Clock, Smile, Upload,
-  Music2, LogOut, ChevronRight, Plus
-} from 'lucide-react'
+import { Home, Search, Library, Heart, Clock, Smile, Upload, Music2, LogOut, Plus, ChevronRight } from 'lucide-react'
+import { motion } from 'framer-motion'
 import useAuthStore from '../../store/authStore'
 import useUIStore from '../../store/uiStore'
 
-const NAV_LINKS = [
+const NAV = [
   { to: '/', icon: Home, label: 'Home', end: true },
   { to: '/search', icon: Search, label: 'Search' },
   { to: '/library', icon: Library, label: 'Your Library' },
 ]
 
-const LIBRARY_LINKS = [
+const LIBRARY = [
   { to: '/liked', icon: Heart, label: 'Liked Songs' },
   { to: '/history', icon: Clock, label: 'History' },
   { to: '/mood', icon: Smile, label: 'Mood Radio' },
@@ -23,74 +21,73 @@ export default function Sidebar() {
   const { openModal } = useUIStore()
   const navigate = useNavigate()
 
-  const handleLogout = () => {
-    logout()
-    navigate('/login')
-  }
-
   return (
-    <aside className="hidden md:flex flex-col w-60 shrink-0 h-full bg-[#0d0d14] border-r border-surface-border/40 py-5 px-3">
+    <aside
+      className="hidden md:flex flex-col w-58 shrink-0 h-full py-5 px-3 border-r border-surface-border/30"
+      style={{ background: 'var(--color-surface)' }}
+    >
       {/* Logo */}
-      <div className="flex items-center gap-2.5 px-3 mb-8">
+      <div className="flex items-center gap-2.5 px-3 mb-7">
         <div className="w-8 h-8 rounded-lg bg-brand flex items-center justify-center glow">
-          <Music2 size={18} className="text-white" />
+          <Music2 size={17} className="text-white" />
         </div>
         <span className="text-lg font-bold text-text-primary tracking-tight">MelodAI</span>
       </div>
 
       {/* Main nav */}
-      <nav className="space-y-1 mb-6">
-        {NAV_LINKS.map(({ to, icon: Icon, label, end }) => (
-          <NavLink
-            key={to}
-            to={to}
-            end={end}
+      <nav className="space-y-0.5 mb-5">
+        {NAV.map(({ to, icon: Icon, label, end }) => (
+          <NavLink key={to} to={to} end={end}
             className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
           >
-            <Icon size={18} />
+            <Icon size={17} />
             {label}
           </NavLink>
         ))}
       </nav>
 
-      <div className="border-t border-surface-border/40 pt-4 mb-2">
+      <div className="border-t border-surface-border/40 pt-4 mb-1">
         <div className="flex items-center justify-between px-3 mb-2">
-          <span className="text-xs font-semibold text-text-muted uppercase tracking-widest">Your Music</span>
-          <button
-            onClick={() => openModal('createPlaylist')}
-            className="text-text-muted hover:text-brand transition-colors"
-          >
-            <Plus size={16} />
+          <span className="text-[10px] font-semibold text-text-muted uppercase tracking-widest">Your Music</span>
+          <button onClick={() => openModal('createPlaylist')} className="text-text-muted hover:text-brand transition-colors" title="New playlist">
+            <Plus size={15} />
           </button>
         </div>
-        <nav className="space-y-1">
-          {LIBRARY_LINKS.map(({ to, icon: Icon, label }) => (
-            <NavLink
-              key={to}
-              to={to}
-              className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
-            >
-              <Icon size={18} />
+        <nav className="space-y-0.5">
+          {LIBRARY.map(({ to, icon: Icon, label }) => (
+            <NavLink key={to} to={to} className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
+              <Icon size={17} />
               {label}
             </NavLink>
           ))}
         </nav>
       </div>
 
-      {/* Upload (admin) */}
       {user?.role === 'admin' && (
-        <NavLink to="/upload" className={({ isActive }) => `sidebar-link mt-1 ${isActive ? 'active' : ''}`}>
-          <Upload size={18} />
+        <NavLink to="/upload" className={({ isActive }) => `sidebar-link mt-0.5 ${isActive ? 'active' : ''}`}>
+          <Upload size={17} />
           Upload Song
         </NavLink>
       )}
 
-      {/* Spacer */}
+      {/* Keyboard shortcuts hint */}
+      <div className="mt-3 mx-3 p-2.5 rounded-xl bg-surface-overlay/50 border border-surface-border/30">
+        <p className="text-[9px] text-text-muted uppercase tracking-wider mb-1.5">Shortcuts</p>
+        <div className="space-y-0.5">
+          {[['Space','Play/Pause'],['← →','Seek 10s'],['N / P','Next/Prev'],['↑ ↓','Volume']].map(([k,v])=>(
+            <div key={k} className="flex items-center justify-between">
+              <code className="text-[9px] bg-surface-border/60 text-text-muted px-1.5 py-0.5 rounded">{k}</code>
+              <span className="text-[9px] text-text-muted">{v}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
       <div className="flex-1" />
 
-      {/* User profile */}
-      <div className="mt-4 border-t border-surface-border/40 pt-4">
-        <div className="flex items-center gap-3 px-3 py-2">
+      {/* User */}
+      <div className="mt-3 border-t border-surface-border/40 pt-3">
+        <div className="flex items-center gap-2.5 px-3 py-2">
           <div className="w-8 h-8 rounded-full bg-brand/30 flex items-center justify-center overflow-hidden shrink-0">
             {user?.avatar
               ? <img src={user.avatar} alt={user.username} className="w-full h-full object-cover" />
@@ -99,10 +96,10 @@ export default function Sidebar() {
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-text-primary truncate">{user?.username}</p>
-            <p className="text-xs text-text-muted truncate">{user?.role}</p>
+            <p className="text-[10px] text-text-muted capitalize">{user?.role}</p>
           </div>
-          <button onClick={handleLogout} className="text-text-muted hover:text-red-400 transition-colors" title="Logout">
-            <LogOut size={15} />
+          <button onClick={() => { logout(); navigate('/login') }} className="text-text-muted hover:text-red-400 transition-colors" title="Logout">
+            <LogOut size={14} />
           </button>
         </div>
       </div>

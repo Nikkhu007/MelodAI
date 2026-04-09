@@ -1,42 +1,22 @@
 /**
- * YouTube Controller — LOCAL USE ONLY
- * yt-dlp pipes audio through the local Express server.
- * This makes HTML5 <audio> work perfectly including seeking.
- *
- * Install yt-dlp first:
- *   Windows:  pip install yt-dlp   or   winget install yt-dlp
- *   Mac:      brew install yt-dlp
- *   Linux:    pip install yt-dlp
+ * YouTube Controller — LOCAL USE ONLY via yt-dlp
+ * Features: smart search, audio piping with range support, URL caching
  */
-
-const { exec, spawn } = require('child_process')
+const { exec } = require('child_process')
 const { promisify } = require('util')
 const execAsync = promisify(exec)
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-// Cache: videoId → { url, expiry }  (YouTube CDN URLs expire ~6 hrs)
+// ── URL cache (5-hour TTL, YouTube CDN URLs expire ~6hrs) ───────────────────
 const urlCache = new Map()
 
 async function getCachedAudioUrl(videoId) {
   const cached = urlCache.get(videoId)
   if (cached && cached.expiry > Date.now()) return cached.url
 
-  const cmd = [
-    'yt-dlp',
-    `"https://www.youtube.com/watch?v=${videoId}"`,
-    '--get-url',
-    '--format', '"bestaudio[ext=webm]/bestaudio[ext=m4a]/bestaudio/best"',
-    '--no-playlist',
-    '--no-warnings',
-    '--quiet',
-  ].join(' ')
-
+  const cmd = `yt-dlp "https://www.youtube.com/watch?v=${videoId}" --get-url --format "bestaudio[ext=webm]/bestaudio[ext=m4a]/bestaudio/best" --no-playlist --no-warnings --quiet`
   const { stdout } = await execAsync(cmd, { timeout: 25000 })
   const url = stdout.trim().split('\n')[0]
   if (!url) throw new Error('No audio URL returned')
-
-  // Cache for 5 hours (YouTube URLs expire ~6 hrs)
   urlCache.set(videoId, { url, expiry: Date.now() + 5 * 60 * 60 * 1000 })
   return url
 }
@@ -59,26 +39,17 @@ function videoToSong(v) {
   }
 }
 
-// ─── Route handlers ───────────────────────────────────────────────────────────
-
-/**
- * GET /api/youtube/search?q=...&limit=20
- */
+// ── Improved search: adds "official audio" suffix for better music results ──
 exports.search = async (req, res) => {
-  const { q, limit = 20 } = req.query
+  const { q, limit = 20, type = 'music' } = req.query
   if (!q?.trim()) return res.status(400).json({ success: false, message: 'Query required' })
 
-  const cmd = [
-    'yt-dlp',
-    `"ytsearch${parseInt(limit)}:${q.trim()}"`,
-    '--dump-json',
-    '--flat-playlist',
-    '--no-warnings',
-    '--quiet',
-  ].join(' ')
+  // Append context hint for better music results
+  const query = type === 'music' ? `${q.trim()} official audio` : q.trim()
 
+  const cmd = `yt-dlp "ytsearch${parseInt(limit)}:${query}" --dump-json --flat-playlist --no-warnings --quiet`
   try {
-    const { stdout } = await execAsync(cmd, { maxBuffer: 10 * 1024 * 1024, timeout: 30000 })
+    const { stdout } = await execAsync(cmd, { maxBuffer: 10 * 1024 * 1024, timeout: 35000 })
     const songs = stdout.trim().split('\n')
       .filter(Boolean)
       .map(line => { try { return videoToSong(JSON.parse(line)) } catch { return null } })
@@ -91,15 +62,8 @@ exports.search = async (req, res) => {
 
 /**
  * GET /api/youtube/stream/:videoId
- *
- * Pipes audio from YouTube's CDN through your local server to the browser.
- * Supports HTTP Range requests so the seek bar works.
- *
- * How it works:
- *   1. yt-dlp extracts the real CDN audio URL (cached 5 hrs)
- *   2. Node fetches that URL with the Range header forwarded
- *   3. The response bytes are piped straight to the browser
- *   → Browser sees it as a normal audio stream, seek works perfectly
+ * Pipes audio through the backend so HTML5 <audio> can play it.
+ * Supports HTTP Range requests for seeking.
  */
 exports.stream = async (req, res) => {
   const { videoId } = req.params
@@ -107,113 +71,78 @@ exports.stream = async (req, res) => {
     return res.status(400).json({ success: false, message: 'Invalid video ID' })
   }
 
-  try {
+  const tryStream = async (bust = false) => {
+    if (bust) urlCache.delete(videoId)
     const audioUrl = await getCachedAudioUrl(videoId)
-
-    // Forward Range header from browser (needed for seeking)
     const rangeHeader = req.headers['range']
-    const fetchHeaders = {
+    const headers = {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
       'Accept': '*/*',
       'Accept-Language': 'en-US,en;q=0.9',
-      'Origin': 'https://www.youtube.com',
       'Referer': 'https://www.youtube.com/',
+      'Origin': 'https://www.youtube.com',
     }
-    if (rangeHeader) fetchHeaders['Range'] = rangeHeader
-
-    const upstream = await fetch(audioUrl, { headers: fetchHeaders })
-
-    if (!upstream.ok && upstream.status !== 206) {
-      // CDN URL may have expired — bust cache and retry once
-      urlCache.delete(videoId)
-      const freshUrl = await getCachedAudioUrl(videoId)
-      const retry = await fetch(freshUrl, { headers: fetchHeaders })
-      if (!retry.ok && retry.status !== 206) {
-        return res.status(502).json({ success: false, message: 'Audio stream unavailable' })
-      }
-      pipeResponse(retry, res, rangeHeader)
-    } else {
-      pipeResponse(upstream, res, rangeHeader)
-    }
-  } catch (err) {
-    console.error('Stream error:', err.message)
-    if (!res.headersSent) {
-      res.status(500).json({ success: false, message: 'Stream failed: ' + err.message })
-    }
+    if (rangeHeader) headers['Range'] = rangeHeader
+    return { audioUrl, headers, rangeHeader }
   }
-}
 
-function pipeResponse(upstream, res, rangeHeader) {
-  // Copy relevant headers from upstream to client
-  const contentType = upstream.headers.get('content-type') || 'audio/webm'
-  const contentLength = upstream.headers.get('content-length')
-  const contentRange = upstream.headers.get('content-range')
-  const acceptRanges = upstream.headers.get('accept-ranges') || 'bytes'
+  try {
+    let { audioUrl, headers, rangeHeader } = await tryStream()
+    let upstream = await fetch(audioUrl, { headers })
 
-  res.setHeader('Content-Type', contentType)
-  res.setHeader('Accept-Ranges', acceptRanges)
-  res.setHeader('Cache-Control', 'no-cache')
-  res.setHeader('Access-Control-Allow-Origin', '*')
+    // Retry with fresh URL if CDN rejects
+    if (!upstream.ok && upstream.status !== 206) {
+      const retry = await tryStream(true)
+      upstream = await fetch(retry.audioUrl, { headers: retry.headers })
+      if (!upstream.ok && upstream.status !== 206) {
+        return res.status(502).json({ success: false, message: 'Audio stream unavailable, try again' })
+      }
+    }
 
-  if (contentLength) res.setHeader('Content-Length', contentLength)
-  if (contentRange) res.setHeader('Content-Range', contentRange)
+    // Forward headers
+    res.setHeader('Content-Type', upstream.headers.get('content-type') || 'audio/webm')
+    res.setHeader('Accept-Ranges', upstream.headers.get('accept-ranges') || 'bytes')
+    res.setHeader('Cache-Control', 'no-cache')
+    res.setHeader('Access-Control-Allow-Origin', '*')
+    const cl = upstream.headers.get('content-length')
+    const cr = upstream.headers.get('content-range')
+    if (cl) res.setHeader('Content-Length', cl)
+    if (cr) res.setHeader('Content-Range', cr)
+    res.status(rangeHeader ? 206 : 200)
 
-  // 206 Partial Content for range requests, 200 otherwise
-  res.status(rangeHeader ? 206 : 200)
-
-  // Pipe the audio bytes to the browser
-  if (upstream.body) {
+    // Pipe bytes
     const reader = upstream.body.getReader()
     const pump = () => reader.read().then(({ done, value }) => {
       if (done) { res.end(); return }
-      res.write(Buffer.from(value))
-      pump()
-    }).catch(() => res.end())
+      if (!res.writableEnded) { res.write(Buffer.from(value)); pump() }
+    }).catch(() => { if (!res.writableEnded) res.end() })
     pump()
-  } else {
-    res.end()
+
+    req.on('close', () => reader.cancel().catch(() => {}))
+  } catch (err) {
+    console.error('Stream error:', err.message)
+    if (!res.headersSent) res.status(500).json({ success: false, message: 'Stream failed: ' + err.message })
   }
 }
 
-/**
- * GET /api/youtube/trending?region=IN
- */
 exports.trending = async (req, res) => {
-  const { region = 'IN' } = req.query
-  // Fall back to a popular search since trending feed parsing is unreliable
-  const queries = {
-    IN: 'trending bollywood songs 2024',
-    US: 'top hits usa 2024',
-    GB: 'top uk songs 2024',
-  }
-  const q = queries[region] || 'trending music 2024'
-  req.query.q = q
+  req.query.q = 'trending songs 2024'
   req.query.limit = 20
+  req.query.type = 'none' // don't add "official audio" to trending query
   return exports.search(req, res)
 }
 
-/**
- * GET /api/youtube/check
- */
 exports.check = async (req, res) => {
   try {
     const { stdout } = await execAsync('yt-dlp --version', { timeout: 5000 })
     res.json({ success: true, version: stdout.trim(), installed: true })
   } catch {
-    res.json({
-      success: false, installed: false, message: 'yt-dlp not found',
-      install: {
-        windows: 'pip install yt-dlp  OR  winget install yt-dlp',
-        mac: 'brew install yt-dlp',
-        linux: 'pip install yt-dlp',
-      },
+    res.json({ success: false, installed: false, message: 'yt-dlp not found',
+      install: { windows: 'pip install yt-dlp  OR  winget install yt-dlp', mac: 'brew install yt-dlp', linux: 'pip install yt-dlp' }
     })
   }
 }
 
-/**
- * GET /api/youtube/info/:videoId
- */
 exports.getInfo = async (req, res) => {
   const { videoId } = req.params
   const cmd = `yt-dlp "https://www.youtube.com/watch?v=${videoId}" --dump-json --no-playlist --no-warnings --quiet`
