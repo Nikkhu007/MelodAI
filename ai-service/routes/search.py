@@ -74,7 +74,7 @@ async def rank_search(req: SearchRankRequest, request: Request):
     """
     engine = request.app.state.engine
 
-    if not engine.song_ids or not engine.content_matrix is not None:
+    if not engine.song_ids or engine.content_matrix is None:
         return SearchRankResponse(ranked_ids=req.candidate_ids)
 
     genre_weights = req.ai_profile.get("genre_weights", {})

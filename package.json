@@ -1,0 +1,19 @@
+{
+  "name": "melodai",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently --names \"AI,BACK,FRONT\" --prefix-colors \"cyan,green,magenta\" --kill-others-on-fail \"cd ai-service && uvicorn main:app --host 0.0.0.0 --port 8000 --reload\" \"cd backend && nodemon server.js\" \"cd frontend && vite\"",
+    "dev:backend":  "cd backend  && nodemon server.js",
+    "dev:frontend": "cd frontend && vite",
+    "dev:ai":       "cd ai-service && uvicorn main:app --port 8000 --reload",
+    "install:all":  "npm install && (cd backend && npm install) && (cd frontend && npm install)",
+    "seed":         "cd backend && node utils/seed.js",
+    "build":        "cd frontend && npm run build"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "nodemon": "^3.0.2",
+    "vite": "^5.0.8"
+  }
+}

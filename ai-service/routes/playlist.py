@@ -80,7 +80,7 @@ async def generate_playlist(req: PlaylistRequest, request: Request):
     if song_ids and engine.content_matrix:
         hybrid = engine.hybrid_recommend(
             user_id=req.user_id,
-            ai_profile=req.ai_profile.dict(),
+            ai_profile=req.ai_profile.model_dump(),
             listened_ids=[],
             current_mood=mood,
             limit=req.limit,

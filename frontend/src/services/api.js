@@ -1,7 +1,7 @@
 import axios from 'axios'
 
 const api = axios.create({
-baseURL: 'http://localhost:5000/api',
+  baseURL: import.meta.env.VITE_API_URL || '/api',
   timeout: 15000,
 })
 
@@ -63,7 +63,7 @@ export const playlistsAPI = {
   create:       data    => api.post('/playlists', data),
   update:       (id, d) => api.put(`/playlists/${id}`, d),
   delete:       id      => api.delete(`/playlists/${id}`),
-  addSong:      (id, songId) => api.post(`/playlists/${id}/songs`, { songId }),
+  addSong:      (id, songId, songData) => api.post(`/playlists/${id}/songs`, { songId, songData }),
   removeSong:   (id, songId) => api.delete(`/playlists/${id}/songs/${songId}`),
   generateAI:   data    => api.post('/playlists/ai-generate', data),
 }
@@ -103,7 +103,7 @@ export const uploadAPI = {
 // ── YouTube (yt-dlp, local only) ───────────────────────────────────────────
 export const youtubeAPI = {
   check:     ()              => api.get('/youtube/check'),
-  search:    (q, limit = 20) => api.get('/youtube/search', { params: { q, limit } }),
+  search:    (q, limit = 20, raw = false) => api.get('/youtube/search', { params: { q, limit, type: raw ? 'none' : 'music' } }),
   trending:  (region = 'IN') => api.get('/youtube/trending', { params: { region } }),
   info:      videoId         => api.get(`/youtube/info/${videoId}`),
   streamUrl: videoId         => `${api.defaults.baseURL}/youtube/stream/${videoId}`,
@@ -131,4 +131,22 @@ export function clearCache(prefix) {
   for (const key of apiCache.keys()) {
     if (!prefix || key.startsWith(prefix)) apiCache.delete(key)
   }
+}
+
+// ── Environment helpers ────────────────────────────────────────────────────
+export const isVercel = typeof window !== 'undefined' &&
+  (window.location.hostname.includes('vercel.app') ||
+   import.meta.env.VITE_API_URL === '/api')
+
+// AI service URL — same domain on Vercel, separate on local
+export const AI_BASE = isVercel ? '/ai' : (import.meta.env.VITE_AI_URL || 'http://localhost:8000')
+
+export const aiAPI = {
+  recommend:        data => axios.post(`${AI_BASE}/recommend`,         data),
+  similar:          data => axios.post(`${AI_BASE}/similar`,           data),
+  generatePlaylist: data => axios.post(`${AI_BASE}/generate-playlist`, data),
+  rankSearch:       data => axios.post(`${AI_BASE}/rank-search`,       data),
+  moodRecommend:    data => axios.post(`${AI_BASE}/mood-recommend`,    data),
+  embed:            data => axios.post(`${AI_BASE}/embed`,             data),
+  health:           ()   => axios.get(`${AI_BASE}/health`),
 }

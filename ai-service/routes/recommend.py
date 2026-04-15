@@ -30,7 +30,7 @@ async def recommend(req: RecommendRequest, request: Request):
 
     results = engine.hybrid_recommend(
         user_id=req.user_id,
-        ai_profile=req.ai_profile.dict(),
+        ai_profile=req.ai_profile.model_dump(),
         listened_ids=req.listened_ids,
         current_mood=req.current_mood,
         limit=req.limit,
