@@ -1,37 +1,35 @@
-const { cloudinary } = require('../config/cloudinary');
-const multer = require('multer');
-const { CloudinaryStorage } = require('multer-storage-cloudinary');
+/**
+ * Upload Controller — v3
+ * Audio + image uploads via Cloudinary with circuit breaker
+ */
+const AppError    = require('../utils/AppError')
+const { deleteFile } = require('../config/cloudinary')
 
-// POST /api/upload/audio
-exports.uploadAudio = async (req, res) => {
-  if (!req.file) return res.status(400).json({ success: false, message: 'No audio file uploaded' });
-  res.json({
-    success: true,
-    url: req.file.path,
+exports.uploadAudio = async (req, res, next) => {
+  if (!req.file) return next(AppError.badRequest('No audio file provided'))
+  res.status(201).json({
+    success:  true,
+    audioUrl: req.file.path,
     publicId: req.file.filename,
-    duration: req.file.duration || null,
-  });
-};
+    size:     req.file.size,
+    format:   req.file.format || req.file.mimetype,
+  })
+}
 
-// POST /api/upload/image
-exports.uploadImage = async (req, res) => {
-  if (!req.file) return res.status(400).json({ success: false, message: 'No image uploaded' });
-  res.json({
-    success: true,
-    url: req.file.path,
+exports.uploadImage = async (req, res, next) => {
+  if (!req.file) return next(AppError.badRequest('No image file provided'))
+  res.status(201).json({
+    success:  true,
+    imageUrl: req.file.path,
     publicId: req.file.filename,
-  });
-};
+    width:    req.file.width,
+    height:   req.file.height,
+  })
+}
 
-// DELETE /api/upload/:publicId
-exports.deleteFile = async (req, res) => {
-  if (req.user.role !== 'admin') {
-    return res.status(403).json({ success: false, message: 'Admin only' });
-  }
-  try {
-    await cloudinary.uploader.destroy(req.params.publicId, { resource_type: 'video' });
-    res.json({ success: true, message: 'Deleted' });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-};
+exports.deleteUpload = async (req, res, next) => {
+  const { publicId, type = 'image' } = req.body
+  if (!publicId) return next(AppError.badRequest('publicId required'))
+  const result = await deleteFile(publicId, type === 'audio' ? 'video' : 'image')
+  res.json({ success: true, result })
+}

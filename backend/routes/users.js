@@ -1,35 +1,23 @@
-const express = require('express');
-const { protect } = require('../middleware/auth');
-const User = require('../models/User');
-const ListenEvent = require('../models/ListenEvent');
+const express = require('express')
+const {
+  getMe, updateProfile, changePassword,
+  getHistory, getLiked, getMyStats, getAIProfile,
+  followUser, unfollowUser, getProfile, deactivateAccount,
+} = require('../controllers/userController')
+const { protect, optionalAuth } = require('../middleware/auth')
 
-const router = express.Router();
+const r = express.Router()
 
-// GET /api/users/history — user's listening history
-router.get('/history', protect, async (req, res) => {
-  const events = await ListenEvent.find({ user: req.user._id })
-    .sort({ createdAt: -1 })
-    .limit(100)
-    .populate('song', 'title artist coverUrl duration audioUrl mood genre');
-  res.json({ success: true, events });
-});
+r.get('/me',             protect,       getMe)
+r.put('/profile',        protect,       updateProfile)
+r.put('/password',       protect,       changePassword)
+r.get('/history',        protect,       getHistory)
+r.get('/liked',          protect,       getLiked)
+r.get('/stats',          protect,       getMyStats)
+r.get('/ai-profile',     protect,       getAIProfile)
+r.post('/follow/:id',    protect,       followUser)
+r.delete('/follow/:id',  protect,       unfollowUser)
+r.delete('/me',          protect,       deactivateAccount)
+r.get('/:id',            optionalAuth,  getProfile)
 
-// GET /api/users/liked — liked songs
-router.get('/liked', protect, async (req, res) => {
-  const user = await User.findById(req.user._id)
-    .populate('likedSongs', 'title artist coverUrl duration audioUrl genre mood tempo');
-  res.json({ success: true, songs: user.likedSongs });
-});
-
-// PUT /api/users/profile — update profile
-router.put('/profile', protect, async (req, res) => {
-  const { username, avatar } = req.body;
-  const updated = await User.findByIdAndUpdate(
-    req.user._id,
-    { username, avatar },
-    { new: true, runValidators: true }
-  ).select('-password');
-  res.json({ success: true, user: updated });
-});
-
-module.exports = router;
+module.exports = r

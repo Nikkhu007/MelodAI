@@ -1,29 +1,21 @@
-"""
-POST /embed
-Generate and return a content feature embedding for a song.
-Called by the Node backend after a song is created/updated.
-"""
+"""POST /embed — Generate content embedding for a song."""
 from fastapi import APIRouter, Request
 from pydantic import BaseModel
-from typing import List, Optional, Dict
+from typing import List, Dict
 
 router = APIRouter()
 
 class EmbedRequest(BaseModel):
-    song_id: str
-    features: Dict
+    song_id:  str
+    features: Dict = {}
 
-class EmbedResponse(BaseModel):
-    song_id: str
-    embedding: List[float]
-
-@router.post("", response_model=EmbedResponse)
-async def embed_song(req: EmbedRequest, request: Request):
+@router.post("")
+async def embed(req: EmbedRequest, request: Request):
     engine = request.app.state.engine
-
-    if engine.content_matrix is None:
-        # Engine not ready (no songs yet) — return zeros
-        return EmbedResponse(song_id=req.song_id, embedding=[0.0] * 205)
-
-    emb = engine.get_content_embedding(req.features)
-    return EmbedResponse(song_id=req.song_id, embedding=emb.tolist())
+    if not engine.song_ids:
+        return {"embedding": [], "note": "Model not ready"}
+    try:
+        vec = engine._embed_features(req.features)
+        return {"embedding": vec.tolist(), "song_id": req.song_id}
+    except Exception as e:
+        return {"embedding": [], "error": str(e)}

@@ -183,3 +183,20 @@ exports.smartSearch = async (req, res) => {
 
   res.json({ success: true, songs: textResults.slice(0, parseInt(limit)) });
 };
+
+/**
+ * POST /api/recommendations/skip-feedback
+ * Immediately updates AI model with skip event for real-time personalisation
+ */
+exports.skipFeedback = async (req, res) => {
+  const { songId } = req.body
+  const user = req.user
+  if (!songId) return res.status(400).json({ success: false, message: 'songId required' })
+  try {
+    await axios.post(`${AI_URL}/recommend/skip-feedback`, {
+      user_id: user._id.toString(),
+      song_id: songId,
+    }, { timeout: 3000 })
+  } catch (_) {}
+  res.json({ success: true })
+}

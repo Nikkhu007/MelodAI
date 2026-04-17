@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   Play, Pause, SkipBack, SkipForward, Volume2, VolumeX,
   Shuffle, Repeat, Repeat1, Heart, ListMusic, Maximize2, Minimize2,
-  Mic2, List, Gauge, ChevronDown, Youtube, ExternalLink,
+  Mic2, List, Gauge, ChevronDown, Youtube, ExternalLink, Radio,
 } from 'lucide-react'
 import usePlayerStore from '../../store/playerStore'
 import useAuthStore from '../../store/authStore'
@@ -11,6 +11,7 @@ import useUIStore from '../../store/uiStore'
 import { songsAPI } from '../../services/api'
 import LyricsPanel from '../lyrics/LyricsPanel'
 import QueuePanel from './QueuePanel'
+import AudioVisualizer from './AudioVisualizer'
 
 function fmt(s) {
   if (!s || isNaN(s)) return '0:00'
@@ -116,7 +117,7 @@ function FullPlayer({ onClose }) {
     currentSong, isPlaying, volume, isMuted, currentTime, duration, buffered,
     isShuffled, repeatMode, isLoading, playbackSpeed, showLyrics, showQueue,
     togglePlay, next, prev, seek, setVolume, toggleMute, toggleShuffle,
-    cycleRepeat, setPlaybackSpeed, setPlayerMode, toggleLyrics, toggleQueue,
+    cycleRepeat, setPlaybackSpeed, setPlayerMode, toggleLyrics, toggleQueue, crossfadeSecs, setCrossfade,
   } = usePlayerStore()
   const { user } = useAuthStore()
   const { toast } = useUIStore()
@@ -186,6 +187,11 @@ function FullPlayer({ onClose }) {
             }
           </motion.div>
 
+          {/* Audio Visualizer */}
+          <div className="mx-auto mb-4" style={{ height: '32px', width: 'min(340px, 80vw)' }}>
+            <AudioVisualizer barCount={32} color="#6c47ff" />
+          </div>
+
           {/* Song info */}
           <div className="flex items-start justify-between mb-4">
             <div className="min-w-0">
@@ -234,8 +240,21 @@ function FullPlayer({ onClose }) {
             </button>
           </div>
 
+          {/* Crossfade */}
+          <div className="mt-4 flex items-center gap-3">
+            <span className="text-xs text-text-muted shrink-0">Crossfade</span>
+            <input type="range" min={0} max={10} step={1} value={crossfadeSecs}
+              onChange={e => setCrossfade(Number(e.target.value))}
+              className="flex-1 h-1 cursor-pointer rounded-full"
+              style={{ background: `linear-gradient(to right, #6c47ff ${crossfadeSecs*10}%, #2d2d3d ${crossfadeSecs*10}%)` }}
+            />
+            <span className="text-xs text-text-muted w-8 shrink-0 tabular-nums">
+              {crossfadeSecs === 0 ? 'Off' : `${crossfadeSecs}s`}
+            </span>
+          </div>
+
           {/* Volume + Speed */}
-          <div className="flex items-center justify-between mt-6">
+          <div className="flex items-center justify-between mt-4">
             <VolumeControl volume={volume} isMuted={isMuted} onVolumeChange={setVolume} onToggleMute={toggleMute} />
             {/* Speed picker */}
             <div className="relative">

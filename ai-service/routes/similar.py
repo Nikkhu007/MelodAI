@@ -1,23 +1,21 @@
-"""
-POST /similar
-Content-based similarity: return songs most similar to a given song.
-"""
+"""POST /similar — Content-based similar songs."""
 from fastapi import APIRouter, Request
 from pydantic import BaseModel
-from typing import List, Dict
+from typing import List, Dict, Optional
 
 router = APIRouter()
 
 class SimilarRequest(BaseModel):
-    song_id: str
-    features: Dict
-    limit: int = 10
+    song_id:  str
+    features: Dict = {}
+    limit:    int = 10
 
-class SimilarResponse(BaseModel):
-    similar: List[str]
-
-@router.post("", response_model=SimilarResponse)
-async def find_similar(req: SimilarRequest, request: Request):
+@router.post("")
+async def get_similar(req: SimilarRequest, request: Request):
     engine = request.app.state.engine
-    results = engine.find_similar_songs(req.song_id, req.features, req.limit)
-    return SimilarResponse(similar=results)
+    results = engine.find_similar_songs(
+        song_id  = req.song_id,
+        features = req.features,
+        limit    = req.limit,
+    )
+    return {"similar": results, "count": len(results)}

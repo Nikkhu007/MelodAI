@@ -1,6 +1,5 @@
 import { create } from 'zustand'
 
-// Persist theme to localStorage
 const savedTheme = typeof window !== 'undefined' ? localStorage.getItem('melodai_theme') || 'dark' : 'dark'
 
 const useUIStore = create((set, get) => ({
@@ -8,18 +7,20 @@ const useUIStore = create((set, get) => ({
   theme: savedTheme,
   toasts: [],
   modals: {
-    addToPlaylist: false,
-    createPlaylist: false,
-    uploadSong: false,
-    moodPicker: false,
-    shareModal: false,
-    queuePanel: false,
+    addToPlaylist:   false,
+    createPlaylist:  false,
+    uploadSong:      false,
+    moodPicker:      false,
+    shareModal:      false,
+    queuePanel:      false,
+    sleepTimer:      false,
+    equalizerPanel:  false,
   },
   selectedSongForPlaylist: null,
-  selectedSongForShare: null,
+  selectedSongForShare:    null,
 
-  toggleSidebar: () => set(s => ({ sidebarOpen: !s.sidebarOpen })),
-  setSidebarOpen: (v) => set({ sidebarOpen: v }),
+  toggleSidebar:   () => set(s => ({ sidebarOpen: !s.sidebarOpen })),
+  setSidebarOpen:  (v) => set({ sidebarOpen: v }),
 
   toggleTheme: () => {
     const newTheme = get().theme === 'dark' ? 'light' : 'dark'

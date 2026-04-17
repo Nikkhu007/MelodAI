@@ -5,17 +5,23 @@ import Sidebar from './Sidebar'
 import Player from '../player/Player'
 import TopBar from './TopBar'
 import useUIStore from '../../store/uiStore'
+import useGlobalShortcuts from '../../hooks/useGlobalShortcuts'
 import AddToPlaylistModal  from '../playlists/AddToPlaylistModal'
 import CreatePlaylistModal from '../playlists/CreatePlaylistModal'
 import MoodPickerModal     from '../ui/MoodPickerModal'
 import UploadModal         from '../songs/UploadModal'
 import ShareModal          from '../ui/ShareModal'
+import SleepTimerModal     from '../ui/SleepTimerModal'
+import ShortcutsOverlay    from '../ui/ShortcutsOverlay'
+import SongRadio          from '../player/SongRadio'
 import ToastContainer      from '../ui/ToastContainer'
 
 export default function Layout() {
   const { modals, theme } = useUIStore()
 
-  // Apply theme class to <html> on mount and change
+  // Wire up global keyboard shortcuts
+  useGlobalShortcuts()
+
   useEffect(() => {
     document.documentElement.classList.toggle('light', theme === 'light')
   }, [theme])
@@ -42,7 +48,12 @@ export default function Layout() {
         {modals.moodPicker     && <MoodPickerModal     key="mood" />}
         {modals.uploadSong     && <UploadModal         key="upload" />}
         {modals.shareModal     && <ShareModal          key="share" />}
+        {modals.sleepTimer     && <SleepTimerModal     key="sleep" />}
       </AnimatePresence>
+
+      {/* Always-mounted overlay for ? keyboard shortcuts */}
+      <ShortcutsOverlay />
+      <SongRadio />
 
       <ToastContainer />
     </div>

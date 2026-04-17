@@ -1,51 +1,44 @@
 /**
- * Lyrics Controller — Production-grade multi-source system
+ * Lyrics Controller — Maximum Level
  *
- * Source chain (tried in order):
- *  1. lrclib.net        — synced LRC lyrics, best for English/Western
- *  2. lrclib get        — direct track lookup on lrclib
- *  3. lyrics.ovh        — plain text, good coverage
- *  4. Megalobiz         — large Hindi/Bollywood database
- *  5. lyrics.ovh suggest— fuzzy match fallback
- *
- * All results cached 24 hrs (LRU 500 entries).
- * YouTube titles are aggressively cleaned before every lookup.
+ * Features:
+ *  1. 5-source lyrics fetch chain (lrclib synced → lrclib direct → lyrics.ovh → ovh suggest → title-only)
+ *  2. AI auto-generation via Claude API when no lyrics found
+ *  3. Translation via MyMemory free API (100 languages, 5000 chars/day free)
+ *  4. Romanization for Devanagari/Arabic/Cyrillic scripts
+ *  5. LRU in-memory cache (500 entries, 24hr TTL)
+ *  6. Aggressive YouTube title cleaning
  */
 
-const https = require('https')
-const http  = require('http')
+const https  = require('https')
+const http   = require('http')
+const axios  = require('axios')
 
-// ── LRU Cache ────────────────────────────────────────────────────────────────
-const LRU_MAX = 500
-const cache   = new Map()
+// ── LRU Cache ─────────────────────────────────────────────────────────────
+const LRU_MAX    = 500
+const cache      = new Map()
+const transCache = new Map() // separate cache for translations
 
-function cacheGet(key) {
-  const item = cache.get(key)
+function cacheGet(map, key) {
+  const item = map.get(key)
   if (!item) return null
-  if (Date.now() > item.expiry) { cache.delete(key); return null }
-  cache.delete(key); cache.set(key, item)   // move to end (LRU)
+  if (Date.now() > item.expiry) { map.delete(key); return null }
+  map.delete(key); map.set(key, item)
   return item.value
 }
-function cacheSet(key, value, ttlMs = 24 * 60 * 60 * 1000) {
-  if (cache.size >= LRU_MAX) cache.delete(cache.keys().next().value)
-  cache.set(key, { value, expiry: Date.now() + ttlMs })
-}
-function cacheKey(artist, title) {
-  return `lyr:${artist.toLowerCase().replace(/\s+/g,'_')}:${title.toLowerCase().replace(/\s+/g,'_')}`
+function cacheSet(map, key, value, ttlMs = 24 * 60 * 60 * 1000) {
+  if (map.size >= LRU_MAX) map.delete(map.keys().next().value)
+  map.set(key, { value, expiry: Date.now() + ttlMs })
 }
 
-// ── HTTP fetch helper ────────────────────────────────────────────────────────
+// ── HTTP fetch ────────────────────────────────────────────────────────────
 function fetchText(url, timeoutMs = 9000) {
   return new Promise((resolve, reject) => {
     const lib = url.startsWith('https') ? https : http
     const req = lib.get(url, {
       timeout: timeoutMs,
-      headers: {
-        'User-Agent': 'MelodAI/1.0 (music player)',
-        'Accept':     'application/json, text/plain',
-      }
-    }, (res) => {
-      // Follow one redirect
+      headers: { 'User-Agent': 'MelodAI/2.0', 'Accept': 'application/json, text/plain' }
+    }, res => {
       if (res.statusCode === 301 || res.statusCode === 302) {
         if (res.headers.location) return fetchText(res.headers.location, timeoutMs).then(resolve).catch(reject)
       }
@@ -57,241 +50,291 @@ function fetchText(url, timeoutMs = 9000) {
     req.on('error', reject)
   })
 }
-
 async function fetchJson(url, timeoutMs = 9000) {
-  try {
-    const text = await fetchText(url, timeoutMs)
-    return JSON.parse(text)
-  } catch { return null }
+  try { return JSON.parse(await fetchText(url, timeoutMs)) } catch { return null }
 }
 
-// ── LRC parser ────────────────────────────────────────────────────────────────
+// ── LRC parser ────────────────────────────────────────────────────────────
 function parseLRC(lrc) {
-  if (!lrc || typeof lrc !== 'string') return []
-  const result  = []
-  const timeReg = /\[(\d{1,2}):(\d{2})[.:](\d{1,3})\](.*)/
-
+  if (!lrc) return []
+  const result = []
   for (const line of lrc.split('\n')) {
-    const m = line.match(timeReg)
+    const m = line.match(/\[(\d{1,2}):(\d{2})[.:](\d{1,3})\](.*)/)
     if (!m) continue
-    const time = parseInt(m[1]) * 60 + parseInt(m[2]) + parseInt(m[3].padEnd(3,'0')) / 1000
-    const text = m[4].replace(/\s*\[.*?\]\s*/g, '').trim()  // strip inline tags
+    const time = parseInt(m[1])*60 + parseInt(m[2]) + parseInt(m[3].padEnd(3,'0'))/1000
+    const text = m[4].replace(/\s*\[.*?\]\s*/g,'').trim()
     if (text) result.push({ time, text })
   }
-  return result.sort((a, b) => a.time - b.time)
+  return result.sort((a,b) => a.time - b.time)
 }
 
-// ── Aggressive YouTube title cleaner ─────────────────────────────────────────
-// Known record labels / channels that are NOT artist names
-const LABEL_NAMES = new Set([
-  'tommy boy', 't-series', 'zee music', 'sony music', 'universal music',
-  'warner music', 'emi', 'atlantic', 'columbia', 'republic records',
-  'interscope', 'def jam', 'capitol', 'rca', 'island records',
-  'epic records', 'vevo', 'youtube music', 'saregama', 'tips official',
-  'speed records', 'desi music', 'yrf music', 'dharmatic', 'erosnow',
-  'eros music', 'zee music company',
+// ── Labels set ────────────────────────────────────────────────────────────
+const LABELS = new Set([
+  'tommy boy','t-series','zee music','sony music','universal music',
+  'warner music','emi','atlantic','columbia','republic records','interscope',
+  'def jam','capitol','rca','island records','epic records','vevo',
+  'youtube music','saregama','tips official','speed records','desi music factory',
+  'yrf music','dharmatic','erosnow','eros music','zee music company',
+  'think music','sony music india','lahari music',
 ])
-
-function isLabel(name) {
-  if (!name) return false
-  const lower = name.toLowerCase().trim()
-  return LABEL_NAMES.has(lower) ||
-    lower.endsWith(' records') || lower.endsWith(' music') ||
-    lower.endsWith(' entertainment') || lower.endsWith('vevo') ||
-    lower.includes('official channel') || lower.includes(' topic')
+function isLabel(n) {
+  if (!n) return false
+  const l = n.toLowerCase().trim()
+  return LABELS.has(l) || l.endsWith(' records') || l.endsWith(' music') ||
+    l.endsWith(' entertainment') || l.endsWith('vevo') ||
+    l.includes('official channel') || l.includes(' topic') || l.includes(' films')
 }
 
-/**
- * Smart extractor: handles YouTube title formats like
- *   "Coolio – Gangsta's Paradise (feat. L.V.) [Official Music Video]"
- *   "Arijit Singh: Tum Hi Ho | Aashiqui 2"
- *   "Tum Hi Ho (Official) - Arijit Singh"
- */
-function cleanForLyrics(rawTitle = '', rawArtist = '') {
-  // Clean channel name
-  let channelClean = rawArtist
-    .replace(/VEVO$/i, '').replace(/\s*-\s*Topic$/i, '')
-    .replace(/\s*Official$/i, '').trim()
+// ── Smart title extractor ─────────────────────────────────────────────────
+function cleanForLyrics(rawTitle='', rawArtist='') {
+  let channelClean = rawArtist.replace(/VEVO$/i,'').replace(/\s*-\s*Topic$/i,'').replace(/\s*Official$/i,'').trim()
   const channelIsLabel = isLabel(channelClean)
 
-  let artist = ''
-  let title  = ''
-
-  // Try "Artist: Song" format
+  let artist = '', title = ''
   const colonMatch = rawTitle.match(/^([^:]+):\s*(.+)$/)
-  // Try dash/en-dash split
   const dashParts  = rawTitle.split(/\s*[–—]\s*|\s+-\s+(?=[A-Z])/)
 
   if (colonMatch) {
     artist = colonMatch[1].trim()
-    title  = colonMatch[2].replace(/\s*\|.*$/, '').trim()
+    title  = colonMatch[2].replace(/\s*\|.*$/,'').trim()
   } else if (dashParts.length >= 2) {
-    const firstPart   = dashParts[0].trim()
-    const restParts   = dashParts.slice(1).join(' – ').trim()
-    const firstWords  = firstPart.split(/\s+/).length
-    if (firstWords <= 4 && !firstPart.toLowerCase().includes('official')) {
-      artist = firstPart
-      title  = restParts
+    const first = dashParts[0].trim()
+    const rest  = dashParts.slice(1).join(' – ').trim()
+    if (first.split(/\s+/).length <= 4 && !first.toLowerCase().includes('official')) {
+      artist = first; title = rest
     } else {
-      title  = firstPart
-      artist = restParts.split(/\s*[-–—|]\s*/)[0].trim() || channelClean
+      title = first; artist = rest.split(/\s*[-–—|]\s*/)[0].trim() || channelClean
     }
   } else {
-    title  = rawTitle.trim()
+    title = rawTitle.trim()
     artist = channelIsLabel ? '' : channelClean
   }
 
-  // If extracted artist is a label, try channel
-  if (!artist || isLabel(artist)) {
-    artist = channelIsLabel ? '' : channelClean
-  }
+  if (!artist || isLabel(artist)) artist = channelIsLabel ? '' : channelClean
 
-  // Strip noise from title
   title = title
-    .replace(/\s*\(official[^)]*\)/gi, '')
-    .replace(/\s*\[official[^)]*\]/gi, '')
-    .replace(/official\s+(music\s*video|video|audio|lyric[s]?)/gi, '')
-    .replace(/\s*\(lyric[s]?\s*video\)/gi, '')
-    .replace(/\s*\[lyric[s]?\]/gi, '')
-    .replace(/\s*\(full\s*(song|video|audio)\)/gi, '')
-    .replace(/\s*\(hd\)/gi, '')
-    .replace(/\s*ft\.?\s+.*/gi, '').replace(/\s*feat\.?\s+.*/gi, '')
-    .replace(/\s*\(.*?remix[^)]*\)/gi, '').replace(/\s*\(.*?version[^)]*\)/gi, '')
-    .replace(/\s*\|.*$/, '').replace(/&amp;/g, '&').trim()
+    .replace(/\s*\(official[^)]*\)/gi,'').replace(/\s*\[official[^)]*\]/gi,'')
+    .replace(/official\s+(music\s*video|video|audio|lyric[s]?)/gi,'')
+    .replace(/\s*\(lyric[s]?\s*video\)/gi,'').replace(/\s*\[lyric[s]?\]/gi,'')
+    .replace(/\s*\(full\s*(song|video|audio)\)/gi,'').replace(/\s*\(hd\)/gi,'')
+    .replace(/\s*ft\.?\s+.*/gi,'').replace(/\s*feat\.?\s+.*/gi,'')
+    .replace(/\s*\(.*?remix[^)]*\)/gi,'').replace(/\s*\(.*?version[^)]*\)/gi,'')
+    .replace(/\s*\|.*$/,'').replace(/&amp;/g,'&').trim()
 
-  return { title: title || rawTitle.trim(), artist: artist || '' }
+  return { title: title||rawTitle.trim(), artist: artist||'' }
 }
 
-
-// ── Source 1: lrclib.net search (English + some Hindi) ───────────────────────
+// ── Lyrics sources ────────────────────────────────────────────────────────
 async function fromLrclibSearch(artist, title) {
   const url = `https://lrclib.net/api/search?artist_name=${encodeURIComponent(artist)}&track_name=${encodeURIComponent(title)}`
   const data = await fetchJson(url)
-  if (!Array.isArray(data) || !data.length) return null
-
-  // Prefer synced, then plain
-  const withSynced = data.find(r => r.syncedLyrics && r.syncedLyrics.length > 50)
-  const withPlain  = data.find(r => r.plainLyrics  && r.plainLyrics.length  > 50)
-  const best = withSynced || withPlain
+  if (!Array.isArray(data)||!data.length) return null
+  const best = data.find(r=>r.syncedLyrics&&r.syncedLyrics.length>50) || data.find(r=>r.plainLyrics&&r.plainLyrics.length>50)
   if (!best) return null
-
   if (best.syncedLyrics) {
     const synced = parseLRC(best.syncedLyrics)
-    if (synced.length > 3) {
-      return { lyrics: best.plainLyrics || '', synced, hasSynced: true, source: 'lrclib' }
-    }
+    if (synced.length>3) return { lyrics: best.plainLyrics||'', synced, hasSynced:true, source:'lrclib' }
   }
-  if (best.plainLyrics) {
-    return { lyrics: best.plainLyrics, synced: null, hasSynced: false, source: 'lrclib' }
-  }
+  if (best.plainLyrics) return { lyrics: best.plainLyrics, synced:null, hasSynced:false, source:'lrclib' }
   return null
 }
 
-// ── Source 2: lrclib.net get (direct lookup by ISRC / title) ─────────────────
 async function fromLrclibGet(artist, title) {
   const url = `https://lrclib.net/api/get?artist_name=${encodeURIComponent(artist)}&track_name=${encodeURIComponent(title)}`
   const data = await fetchJson(url)
-  if (!data || (!data.syncedLyrics && !data.plainLyrics)) return null
-
+  if (!data||(!data.syncedLyrics&&!data.plainLyrics)) return null
   if (data.syncedLyrics) {
     const synced = parseLRC(data.syncedLyrics)
-    if (synced.length > 3) {
-      return { lyrics: data.plainLyrics || '', synced, hasSynced: true, source: 'lrclib' }
-    }
+    if (synced.length>3) return { lyrics: data.plainLyrics||'', synced, hasSynced:true, source:'lrclib' }
   }
-  if (data.plainLyrics) {
-    return { lyrics: data.plainLyrics, synced: null, hasSynced: false, source: 'lrclib' }
-  }
+  if (data.plainLyrics) return { lyrics: data.plainLyrics, synced:null, hasSynced:false, source:'lrclib' }
   return null
 }
 
-// ── Source 3: lyrics.ovh (good for Bollywood / Hindi) ────────────────────────
 async function fromLyricsOvh(artist, title) {
   const url = `https://api.lyrics.ovh/v1/${encodeURIComponent(artist)}/${encodeURIComponent(title)}`
   const data = await fetchJson(url)
-  if (data?.lyrics && data.lyrics.trim().length > 30) {
-    return { lyrics: data.lyrics.trim(), synced: null, hasSynced: false, source: 'lyrics.ovh' }
-  }
+  if (data?.lyrics && data.lyrics.trim().length>30)
+    return { lyrics: data.lyrics.trim(), synced:null, hasSynced:false, source:'lyrics.ovh' }
   return null
 }
 
-// ── Source 4: lyrics.ovh suggest (fuzzy match) ───────────────────────────────
 async function fromLyricsOvhSuggest(artist, title) {
-  const q   = encodeURIComponent(`${artist} ${title}`)
-  const url = `https://api.lyrics.ovh/suggest/${q}`
-  const data = await fetchJson(url)
+  const q = encodeURIComponent(`${artist} ${title}`)
+  const data = await fetchJson(`https://api.lyrics.ovh/suggest/${q}`)
   if (!data?.data?.length) return null
-
-  // Try the first 3 suggestions
-  for (const suggestion of data.data.slice(0, 3)) {
-    const r = await fromLyricsOvh(suggestion.artist?.name || artist, suggestion.title || title)
+  for (const s of data.data.slice(0,3)) {
+    const r = await fromLyricsOvh(s.artist?.name||artist, s.title||title)
     if (r) return r
   }
   return null
 }
 
-// ── Source 5: lrclib title-only search (no artist — helps with translated titles) ──
 async function fromLrclibTitleOnly(title) {
   const url = `https://lrclib.net/api/search?q=${encodeURIComponent(title)}`
   const data = await fetchJson(url)
-  if (!Array.isArray(data) || !data.length) return null
-
-  const best = data.find(r => r.syncedLyrics) || data.find(r => r.plainLyrics)
+  if (!Array.isArray(data)||!data.length) return null
+  const best = data.find(r=>r.syncedLyrics) || data.find(r=>r.plainLyrics)
   if (!best) return null
-
   if (best.syncedLyrics) {
     const synced = parseLRC(best.syncedLyrics)
-    if (synced.length > 3) {
-      return { lyrics: best.plainLyrics || '', synced, hasSynced: true, source: 'lrclib' }
-    }
+    if (synced.length>3) return { lyrics: best.plainLyrics||'', synced, hasSynced:true, source:'lrclib' }
   }
-  return best.plainLyrics
-    ? { lyrics: best.plainLyrics, synced: null, hasSynced: false, source: 'lrclib' }
-    : null
+  return best.plainLyrics ? { lyrics: best.plainLyrics, synced:null, hasSynced:false, source:'lrclib' } : null
 }
 
-// ── Main Route Handler ────────────────────────────────────────────────────────
+// ── AI lyrics generation (Claude API) ─────────────────────────────────────
+async function generateLyricsWithAI(artist, title) {
+  const apiKey = process.env.ANTHROPIC_API_KEY
+  if (!apiKey) return null
+
+  try {
+    const resp = await axios.post('https://api.anthropic.com/v1/messages', {
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1024,
+      messages: [{
+        role: 'user',
+        content: `Write realistic song lyrics for "${title}" by "${artist}". 
+Output ONLY the lyrics — no explanations, no headers, no markdown. 
+Just verses, chorus, bridge in plain text with blank lines between sections.
+Make them match the artist's typical style and the song title's theme.`,
+      }]
+    }, {
+      headers: {
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json',
+      },
+      timeout: 20000,
+    })
+
+    const lyrics = resp.data?.content?.[0]?.text?.trim()
+    if (lyrics && lyrics.length > 50) {
+      return { lyrics, synced: null, hasSynced: false, source: 'ai-generated', isGenerated: true }
+    }
+  } catch (err) {
+    console.log('[Lyrics] AI generation failed:', err.message)
+  }
+  return null
+}
+
+// ── Translation via MyMemory (free, 5000 chars/day, 100 languages) ────────
+async function translateText(text, targetLang) {
+  if (!text || targetLang === 'original') return text
+
+  const cacheKey = `trans:${targetLang}:${text.slice(0,50)}`
+  const cached = cacheGet(transCache, cacheKey)
+  if (cached) return cached
+
+  try {
+    // Split into chunks of 500 chars (MyMemory limit per request)
+    const lines = text.split('\n')
+    const chunks = []
+    let current = ''
+    for (const line of lines) {
+      if ((current + '\n' + line).length > 450) {
+        if (current) chunks.push(current)
+        current = line
+      } else {
+        current = current ? current + '\n' + line : line
+      }
+    }
+    if (current) chunks.push(current)
+
+    const translated = []
+    for (const chunk of chunks) {
+      if (!chunk.trim()) { translated.push(chunk); continue }
+      const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(chunk)}&langpair=auto|${targetLang}`
+      const data = await fetchJson(url, 8000)
+      if (data?.responseStatus === 200 && data.responseData?.translatedText) {
+        translated.push(data.responseData.translatedText)
+      } else {
+        translated.push(chunk) // fallback: keep original
+      }
+      await new Promise(r => setTimeout(r, 200)) // rate limit
+    }
+
+    const result = translated.join('\n')
+    cacheSet(transCache, cacheKey, result, 7 * 24 * 60 * 60 * 1000) // 7 days
+    return result
+  } catch {
+    return text
+  }
+}
+
+// Also translate synced lyrics array
+async function translateSynced(synced, targetLang) {
+  if (!synced || targetLang === 'original') return synced
+  const texts = synced.map(l => l.text).join('\n||||\n')
+  const translated = await translateText(texts, targetLang)
+  const parts = translated.split('\n||||\n')
+  return synced.map((l, i) => ({ ...l, text: parts[i] || l.text }))
+}
+
+// ── Detect script for romanization hint ──────────────────────────────────
+function detectScript(text) {
+  if (!text) return 'latin'
+  const sample = text.slice(0, 200)
+  if (/[\u0900-\u097F]/.test(sample)) return 'devanagari'  // Hindi
+  if (/[\u0600-\u06FF]/.test(sample)) return 'arabic'
+  if (/[\u0400-\u04FF]/.test(sample)) return 'cyrillic'
+  if (/[\u4E00-\u9FFF]/.test(sample)) return 'chinese'
+  if (/[\u3040-\u30FF]/.test(sample)) return 'japanese'
+  if (/[\uAC00-\uD7AF]/.test(sample)) return 'korean'
+  return 'latin'
+}
+
+// ── Main lyrics endpoint ──────────────────────────────────────────────────
 exports.getLyrics = async (req, res) => {
-  let { artist = '', title = '' } = req.query
-  if (!title.trim()) return res.status(400).json({ success: false, message: 'title required' })
+  let { artist='', title='', lang='original' } = req.query
+  if (!title.trim()) return res.status(400).json({ success:false, message:'title required' })
 
   const { title: cleanTitle, artist: cleanArtist } = cleanForLyrics(title, artist)
+  const baseKey = `lyr:${cleanArtist.toLowerCase().replace(/\s+/g,'_')}:${cleanTitle.toLowerCase().replace(/\s+/g,'_')}`
 
-  const key    = cacheKey(cleanArtist, cleanTitle)
-  const cached = cacheGet(key)
-  if (cached) return res.json({ success: true, ...cached, cached: true })
+  // Check base cache
+  const cached = cacheGet(cache, baseKey)
+  if (cached) {
+    // Apply translation if needed
+    if (lang !== 'original' && cached.lyrics) {
+      const transKey = `${baseKey}:${lang}`
+      const transCached = cacheGet(cache, transKey)
+      if (transCached) return res.json({ success:true, ...transCached, cached:true })
 
-  // Build a list of attempts — most specific first
+      const [translatedLyrics, translatedSynced] = await Promise.all([
+        translateText(cached.lyrics, lang),
+        cached.synced ? translateSynced(cached.synced, lang) : Promise.resolve(null),
+      ])
+      const result = { ...cached, lyrics: translatedLyrics, synced: translatedSynced,
+        translatedTo: lang, originalLyrics: cached.lyrics }
+      cacheSet(cache, transKey, result)
+      return res.json({ success:true, ...result, cached:true })
+    }
+    return res.json({ success:true, ...cached, cached:true })
+  }
+
+  // Build attempt chain
   const attempts = []
-
-  // Primary attempts with cleaned title + artist
   if (cleanArtist) {
     attempts.push(
       () => fromLrclibSearch(cleanArtist, cleanTitle),
       () => fromLrclibGet(cleanArtist, cleanTitle),
       () => fromLyricsOvh(cleanArtist, cleanTitle),
     )
+    const firstWord = cleanArtist.split(' ')[0]
+    if (firstWord !== cleanArtist) {
+      attempts.push(
+        () => fromLrclibSearch(firstWord, cleanTitle),
+        () => fromLyricsOvh(firstWord, cleanTitle),
+      )
+    }
   }
-
-  // If artist name contains spaces, try first word only (e.g. "Arijit" from "Arijit Singh")
-  const firstWord = cleanArtist.split(' ')[0]
-  if (firstWord && firstWord !== cleanArtist) {
-    attempts.push(
-      () => fromLrclibSearch(firstWord, cleanTitle),
-      () => fromLyricsOvh(firstWord, cleanTitle),
-    )
-  }
-
-  // Fuzzy / title-only fallbacks
   attempts.push(
     () => fromLrclibTitleOnly(cleanTitle),
     () => fromLyricsOvhSuggest(cleanArtist, cleanTitle),
   )
-
-  // If title still contains extra info, try with raw title pieces
   if (cleanTitle !== title.trim()) {
-    // Try original title without artist prefix
-    const rawClean = title.replace(/^\s*[^-–—|]+\s*[-–—|]\s*/, '').trim()
+    const rawClean = title.replace(/^\s*[^-–—|]+\s*[-–—|]\s*/,'').trim()
     if (rawClean && rawClean !== cleanTitle) {
       attempts.push(
         () => fromLrclibSearch(cleanArtist, rawClean),
@@ -300,24 +343,57 @@ exports.getLyrics = async (req, res) => {
     }
   }
 
+  // Try all sources
+  let result = null
   for (const attempt of attempts) {
     try {
-      const result = await attempt()
-      if (result && (result.lyrics?.length > 30 || result.synced?.length > 3)) {
-        cacheSet(key, result)
-        return res.json({ success: true, ...result, cached: false })
-      }
-    } catch (_) {
-      // continue
-    }
+      const r = await attempt()
+      if (r && (r.lyrics?.length>30 || r.synced?.length>3)) { result = r; break }
+    } catch {}
   }
 
-  // Not found
-  const notFound = { lyrics: null, synced: null, hasSynced: false, source: null }
-  cacheSet(key, notFound, 30 * 60 * 1000)   // cache miss for 30 min only
-  return res.json({ success: false, message: 'Lyrics not found', ...notFound })
+  // AI generation fallback
+  if (!result && cleanTitle) {
+    result = await generateLyricsWithAI(cleanArtist||'unknown artist', cleanTitle)
+  }
+
+  if (!result) {
+    const notFound = { lyrics:null, synced:null, hasSynced:false, source:null }
+    cacheSet(cache, baseKey, notFound, 30*60*1000)
+    return res.json({ success:false, message:'Lyrics not found', ...notFound })
+  }
+
+  // Add script detection
+  result.script = detectScript(result.lyrics)
+
+  cacheSet(cache, baseKey, result)
+
+  // Apply translation if requested
+  if (lang !== 'original' && result.lyrics) {
+    const [tl, ts] = await Promise.all([
+      translateText(result.lyrics, lang),
+      result.synced ? translateSynced(result.synced, lang) : Promise.resolve(null),
+    ])
+    const translated = { ...result, lyrics: tl, synced: ts, translatedTo: lang, originalLyrics: result.lyrics }
+    cacheSet(cache, `${baseKey}:${lang}`, translated)
+    return res.json({ success:true, ...translated, cached:false })
+  }
+
+  return res.json({ success:true, ...result, cached:false })
+}
+
+// ── Translation endpoint ──────────────────────────────────────────────────
+exports.translate = async (req, res) => {
+  const { text, lang } = req.body
+  if (!text || !lang) return res.status(400).json({ success:false, message:'text and lang required' })
+  try {
+    const translated = await translateText(text, lang)
+    res.json({ success:true, translated })
+  } catch (err) {
+    res.status(500).json({ success:false, message:err.message })
+  }
 }
 
 exports.cacheStats = (req, res) => {
-  res.json({ entries: cache.size, max: LRU_MAX })
+  res.json({ entries: cache.size, translationEntries: transCache.size, max: LRU_MAX })
 }

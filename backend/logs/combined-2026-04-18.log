@@ -1,0 +1,9 @@
+01:12:23 [34mdebug[39m: [34mConnecting to MongoDB: mongodb:***@ac-mjuz3vl-shard-00-00.5wfgred.mongodb.net:27017,ac-mjuz3vl-shard-00-01.5wfgred.mongodb.net:27017,ac-mjuz3vl-shard-00-02.5wfgred.mongodb.net:27017/melodai?ssl=true&replicaSet=atlas-q53jrm-shard-0&authSource=admin&retryWrites=true&w=majority[39m {"service":"melodai-backend"}
+01:12:23 [32minfo[39m: [32mMelodAI Backend v3 running on port 5000 [development][39m {"service":"melodai-backend"}
+01:12:24 [32minfo[39m: [32mMongoDB connected successfully[39m {"service":"melodai-backend"}
+01:20:13 [34mdebug[39m: [34mConnecting to MongoDB: mongodb:***@ac-mjuz3vl-shard-00-00.5wfgred.mongodb.net:27017,ac-mjuz3vl-shard-00-01.5wfgred.mongodb.net:27017,ac-mjuz3vl-shard-00-02.5wfgred.mongodb.net:27017/melodai?ssl=true&replicaSet=atlas-q53jrm-shard-0&authSource=admin&retryWrites=true&w=majority[39m {"service":"melodai-backend"}
+01:20:13 [32minfo[39m: [32mMelodAI Backend v3 running on port 5000 [development][39m {"service":"melodai-backend"}
+01:20:14 [32minfo[39m: [32mMongoDB connected successfully[39m {"service":"melodai-backend"}
+01:28:44 [34mdebug[39m: [34mConnecting to MongoDB: mongodb:***@ac-mjuz3vl-shard-00-00.5wfgred.mongodb.net:27017,ac-mjuz3vl-shard-00-01.5wfgred.mongodb.net:27017,ac-mjuz3vl-shard-00-02.5wfgred.mongodb.net:27017/melodai?ssl=true&replicaSet=atlas-q53jrm-shard-0&authSource=admin&retryWrites=true&w=majority[39m {"service":"melodai-backend"}
+01:28:44 [32minfo[39m: [32mMelodAI Backend v3 running on port 5000 [development][39m {"service":"melodai-backend"}
+01:28:44 [32minfo[39m: [32mMongoDB connected successfully[39m {"service":"melodai-backend"}

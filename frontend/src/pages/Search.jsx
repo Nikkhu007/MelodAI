@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import {
-  Search as SearchIcon, X, Loader2, Music, Play, Pause,
+  Search as SearchIcon, X, Loader2, Music, Play, Pause, Mic,
   Youtube, ExternalLink, Radio, Heart, ListPlus, Plus
 } from 'lucide-react'
 import usePlayerStore from '../store/playerStore'
@@ -8,6 +8,7 @@ import useAuthStore from '../store/authStore'
 import useUIStore from '../store/uiStore'
 import { youtubeAPI, songsAPI } from '../services/api'
 import { SkeletonRow } from '../components/ui/Skeleton'
+import useVoiceSearch from '../hooks/useVoiceSearch'
 
 // ── Jamendo ────────────────────────────────────────────────────────────────
 const JAMENDO_ID   = import.meta.env.VITE_JAMENDO_CLIENT_ID || 'b6747d04'
@@ -191,6 +192,10 @@ export default function Search() {
   const debounceRef = useRef(null)
   const mountedRef  = useRef(true)
 
+  const voiceSearch = useVoiceSearch((text) => {
+    setQuery(text)
+  })
+
   useEffect(() => {
     mountedRef.current = true
     // Load first chip on mount
@@ -284,8 +289,17 @@ export default function Search() {
           className="input-field pl-11 pr-10 py-4 text-base"
         />
         {query && (
-          <button onClick={() => setQuery('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary">
+          <button onClick={() => setQuery('')} className="absolute right-12 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary">
             <X size={16}/>
+          </button>
+        )}
+        {voiceSearch.supported && (
+          <button
+            onClick={voiceSearch.listening ? voiceSearch.stopListening : voiceSearch.startListening}
+            className={`absolute right-4 top-1/2 -translate-y-1/2 transition-colors ${voiceSearch.listening ? 'text-red-400 animate-pulse' : 'text-text-muted hover:text-brand'}`}
+            title="Voice search"
+          >
+            <Mic size={16}/>
           </button>
         )}
       </div>

@@ -1,0 +1,20 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 7
+    },
+    "auditLog": "D:\\code\\.vscode\\melodai\\melodai\\backend\\logs\\.3e3b5d5ae5358d28ca33e08f37f6174637c06810-audit.json",
+    "files": [
+        {
+            "date": 1776442076450,
+            "name": "D:\\code\\.vscode\\melodai\\melodai\\backend\\logs\\combined-2026-04-17.log",
+            "hash": "2f622d701520d4fb09e20a1f776dbd4f8d42b384d2e4835a6407339f2ab15af6"
+        },
+        {
+            "date": 1776454942661,
+            "name": "D:\\code\\.vscode\\melodai\\melodai\\backend\\logs\\combined-2026-04-18.log",
+            "hash": "49eb207118cc0eceabff0f2544f2652be43a73e451340b3c4611a34abb31d992"
+        }
+    ],
+    "hashType": "sha256"
+}

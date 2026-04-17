@@ -240,3 +240,102 @@ input[type='range']:focus::-webkit-slider-thumb { opacity: 1; transform: scale(1
 
 /* ── Tabular numbers (for time display) ──────────────────────────────────── */
 .tabular-nums { font-variant-numeric: tabular-nums; }
+
+/* ── Enhanced input focus ring ────────────────────────────────────────── */
+.input-field:focus {
+  border-color: rgba(108,71,255,0.7);
+  box-shadow: 0 0 0 3px rgba(108,71,255,0.12), 0 1px 3px rgba(0,0,0,0.3);
+}
+
+/* ── Better button hover states ───────────────────────────────────────── */
+.btn-primary {
+  background: linear-gradient(135deg, #6c47ff, #8b5cf6);
+  box-shadow: 0 4px 14px rgba(108,71,255,0.35);
+  transition: all 0.2s ease;
+}
+.btn-primary:hover {
+  background: linear-gradient(135deg, #7c5cff, #9b7bff);
+  box-shadow: 0 6px 20px rgba(108,71,255,0.45);
+  transform: translateY(-1px);
+}
+.btn-primary:active {
+  transform: translateY(0) scale(0.97);
+  box-shadow: 0 2px 8px rgba(108,71,255,0.3);
+}
+
+/* ── Card hover improvement ───────────────────────────────────────────── */
+.card-hover:hover {
+  box-shadow: 0 12px 40px rgba(0,0,0,0.4), 0 0 0 1px rgba(108,71,255,0.15);
+}
+
+/* ── Glass card ───────────────────────────────────────────────────────── */
+.glass-card {
+  box-shadow: 0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.05);
+}
+
+/* ── Smooth page transitions ──────────────────────────────────────────── */
+.page-enter {
+  animation: pageIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes pageIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Selection color ──────────────────────────────────────────────────── */
+::selection { background: rgba(108,71,255,0.3); color: white; }
+
+/* ── Shimmer animation (for skeleton loaders) ────────────────────────── */
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--color-surface-overlay) 0%,
+    rgba(108, 71, 255, 0.08) 50%,
+    var(--color-surface-overlay) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.8s ease-in-out infinite;
+}
+
+/* ── Subtle pulse for active elements ──────────────────────────────── */
+@keyframes breathe {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.7; }
+}
+.breathe { animation: breathe 2.5s ease-in-out infinite; }
+
+/* ── Gradient shift (used on hero cards) ───────────────────────────── */
+@keyframes gradient-shift {
+  0%, 100% { background-position: 0% 50%; }
+  50%      { background-position: 100% 50%; }
+}
+.gradient-shift {
+  background-size: 200% 200%;
+  animation: gradient-shift 8s ease infinite;
+}
+
+/* ── Smooth scroll ─────────────────────────────────────────────────── */
+html { scroll-behavior: smooth; }
+
+/* ── Focus ring for accessibility ──────────────────────────────────── */
+button:focus-visible, a:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+/* ── Loading progress bar (top of page) ──────────────────────────── */
+.top-loader {
+  position: fixed;
+  top: 0; left: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--color-brand), var(--color-brand-light));
+  z-index: 9999;
+  box-shadow: 0 0 10px rgba(108,71,255,0.5);
+  transition: width 0.3s ease;
+}

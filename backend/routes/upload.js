@@ -1,12 +1,13 @@
-const express = require('express');
-const { protect } = require('../middleware/auth');
-const { uploadAudio: multerAudio, uploadImage: multerImage } = require('../config/cloudinary');
-const { uploadAudio, uploadImage, deleteFile } = require('../controllers/uploadController');
+const express  = require('express')
+const { uploadAudio, uploadImage, deleteUpload } = require('../controllers/uploadController')
+const { protect, adminOnly } = require('../middleware/auth')
+const { uploadAudio: multerAudio, uploadImage: multerImage } = require('../config/cloudinary')
+const limiter  = require('../middleware/rateLimiter')
 
-const router = express.Router();
+const r = express.Router()
 
-router.post('/audio', protect, multerAudio.single('audio'), uploadAudio);
-router.post('/image', protect, multerImage.single('image'), uploadImage);
-router.delete('/:publicId', protect, deleteFile);
+r.post('/audio',    protect, adminOnly, limiter.upload, multerAudio.single('audio'), uploadAudio)
+r.post('/image',    protect, adminOnly, limiter.upload, multerImage.single('image'), uploadImage)
+r.delete('/',       protect, adminOnly,                  deleteUpload)
 
-module.exports = router;
+module.exports = r

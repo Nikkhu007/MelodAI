@@ -9,6 +9,7 @@ import SongCard from '../components/songs/SongCard'
 import SongRow from '../components/songs/SongRow'
 import PlaylistCard from '../components/playlists/PlaylistCard'
 import { SkeletonCard, SkeletonRow } from '../components/ui/Skeleton'
+import QuickPicks from '../components/ui/QuickPicks'
 
 const MOOD_EMOJI = { happy:'😄', sad:'😢', energetic:'⚡', focus:'🎯', chill:'😌', gym:'💪', romance:'💜' }
 
@@ -174,6 +175,9 @@ export default function Home() {
           </div>
         </div>
       </motion.section>
+
+      {/* Quick Picks */}
+      <QuickPicks />
 
       {/* Continue Listening */}
       {recentSongs.length > 0 && (
