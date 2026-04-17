@@ -3,7 +3,8 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import useAuthStore from './store/authStore'
 import usePlayerStore from './store/playerStore'
 import useUIStore from './store/uiStore'
-import ErrorBoundary  from './components/ui/ErrorBoundary'
+import ErrorBoundary     from './components/ui/ErrorBoundary'
+import PWAInstallPrompt from './components/ui/PWAInstallPrompt'
 import OfflineBanner  from './components/ui/OfflineBanner'
 import Layout from './components/layout/Layout'
 import { SkeletonRow } from './components/ui/Skeleton'
@@ -87,6 +88,7 @@ export default function App() {
           </Route>
         </Routes>
       </Suspense>
+    <PWAInstallPrompt />
     </BrowserRouter>
     </ErrorBoundary>
   )

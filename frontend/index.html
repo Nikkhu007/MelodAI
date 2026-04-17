@@ -2,21 +2,41 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#0a0a0f" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+
+    <!-- Primary Meta -->
     <title>MelodAI — AI Music Streaming</title>
+    <meta name="description" content="AI-powered music streaming with YouTube, mood radio, synced lyrics and more" />
+    <meta name="theme-color" content="#6c47ff" />
+
+    <!-- PWA -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" type="image/ico" href="/favicon.ico" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+    <!-- iOS PWA fullscreen support -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="MelodAI" />
+
+    <!-- Android -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="application-name" content="MelodAI" />
+
+    <!-- Open Graph (looks good when shared on WhatsApp) -->
+    <meta property="og:title"       content="MelodAI — AI Music Streaming" />
+    <meta property="og:description" content="Stream any song, set your mood, get AI recommendations" />
+    <meta property="og:type"        content="website" />
+    <meta property="og:image"       content="/pwa-512.png" />
+
+    <!-- Preload fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap" rel="stylesheet" />
+    <link rel="dns-prefetch" href="https://picsum.photos" />
+
+    <!-- Prevent flash of unstyled content -->
     <style>
-      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-      html, body, #root { height: 100%; background: #0a0a0f; }
-      body { font-family: 'DM Sans', system-ui, sans-serif; }
-      ::-webkit-scrollbar { width: 4px; }
-      ::-webkit-scrollbar-track { background: transparent; }
-      ::-webkit-scrollbar-thumb { background: #2d2d3d; border-radius: 2px; }
-      ::-webkit-scrollbar-thumb:hover { background: #6c47ff; }
-      * { -webkit-tap-highlight-color: transparent; }
+      html, body { background: #0a0a0f; margin: 0; padding: 0; }
+      #root { min-height: 100vh; }
     </style>
   </head>
   <body>

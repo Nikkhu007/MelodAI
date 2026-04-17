@@ -339,3 +339,54 @@ button:focus-visible, a:focus-visible {
   box-shadow: 0 0 10px rgba(108,71,255,0.5);
   transition: width 0.3s ease;
 }
+
+/* ── Mobile optimizations ────────────────────────────────────────────────── */
+
+/* Better touch targets */
+@media (max-width: 768px) {
+  /* Bigger tap areas */
+  button { min-height: 36px; }
+
+  /* Song cards — 2 column on mobile */
+  .song-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* Input fields bigger on mobile */
+  .input-field {
+    font-size: 16px !important; /* prevents iOS zoom on focus */
+    min-height: 48px;
+  }
+
+  /* Player bar taller on mobile for easier touch */
+  .player-bar-mobile {
+    height: 64px !important;
+  }
+
+  /* Section padding reduced */
+  .page-content {
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+  }
+
+  /* Hide desktop-only elements */
+  .desktop-only { display: none !important; }
+}
+
+/* Safe area support (notch phones) */
+@supports (padding: env(safe-area-inset-bottom)) {
+  .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+}
+
+/* Prevent text selection on buttons (mobile UX) */
+button, .btn-primary, .btn-ghost {
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+/* Smooth momentum scroll on iOS */
+main { -webkit-overflow-scrolling: touch; }
+
+/* Pull to refresh prevention */
+html { overscroll-behavior-y: none; }
+body { overscroll-behavior-y: none; }

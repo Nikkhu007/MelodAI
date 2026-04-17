@@ -28,7 +28,7 @@ const songSchema = new mongoose.Schema({
   coverUrl:  { type: String, default: '' },
   cloudinaryPublicId: { type: String },
 
-  language:  { type: String, default: 'en', maxlength: 10 },
+  lang:      { type: String, default: 'en', maxlength: 10 },  // renamed from 'language' (MongoDB reserved)
 
   // AI metadata
   genre:        { type: String, enum: GENRES, default: 'other', index: true },
