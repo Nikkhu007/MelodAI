@@ -5,7 +5,8 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 5173,
-    strictPort: false,   // if 5173 taken, try next port automatically
+    strictPort: false,
+    host: '0.0.0.0',     // expose on all network interfaces (LAN access)
     proxy: {
       // ALL /api requests → backend regardless of what port Vite is on
       '/api': {

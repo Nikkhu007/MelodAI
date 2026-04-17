@@ -89,9 +89,10 @@ app.use(cors({
   origin: (origin, cb) => {
     // Allow no-origin (mobile/curl/Postman in dev)
     if (!origin) return cb(null, true)
-    // In development allow any localhost port (Vite picks next available port)
-    if (process.env.NODE_ENV !== 'production' && origin.startsWith('http://localhost:')) {
-      return cb(null, true)
+    // In development allow any localhost port AND LAN IPs (192.168.x.x, 10.x.x.x)
+    if (process.env.NODE_ENV !== 'production') {
+      if (origin.startsWith('http://localhost:')) return cb(null, true)
+      if (/^http:\/\/(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[01])\.)/.test(origin)) return cb(null, true)
     }
     if (allowedOrigins.includes(origin)) return cb(null, true)
     logger.warn(`CORS blocked: ${origin}`)
