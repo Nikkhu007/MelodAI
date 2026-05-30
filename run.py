@@ -32,17 +32,17 @@ FRONT_PORT = 5173        # updated when Vite reports its actual port
 
 def banner():
     os.system("cls" if os.name == "nt" else "clear")
-    # Enable ANSI on Windows
+    # Fix encoding FIRST before any print
     if os.name == "nt":
-        os.system("color")
-        subprocess.run("chcp 65001 >nul 2>&1", shell=True)
+        os.system("chcp 65001 >nul 2>&1")
+        try:
+            sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+        except Exception:
+            pass
     print(f"{MAG}{BOLD}")
-    print("  ███╗   ███╗███████╗██╗      ██████╗ ██████╗  █████╗ ██╗")
-    print("  ████╗ ████║██╔════╝██║     ██╔═══██╗██╔══██╗██╔══██╗██║")
-    print("  ██╔████╔██║█████╗  ██║     ██║   ██║██║  ██║███████║██║")
-    print("  ██║╚██╔╝██║██╔══╝  ██║     ██║   ██║██║  ██║██╔══██║██║")
-    print("  ██║ ╚═╝ ██║███████╗███████╗╚██████╔╝██████╔╝██║  ██║██║")
-    print("  ╚═╝     ╚═╝╚══════╝╚══════╝ ╚═════╝ ╚═════╝ ╚═╝  ╚═╝╚═╝")
+    print("  ==========================================")
+    print("    MelodAI  |  AI Music Streaming App")
+    print("  ==========================================")
     print(f"{R}")
 
 def step(msg):  print(f"\n  {YEL}>>>{R} {BOLD}{msg}{R}", flush=True)

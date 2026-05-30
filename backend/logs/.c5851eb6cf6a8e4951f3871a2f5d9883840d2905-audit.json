@@ -6,14 +6,9 @@
     "auditLog": "D:\\code\\.vscode\\melodai\\melodai\\backend\\logs\\.c5851eb6cf6a8e4951f3871a2f5d9883840d2905-audit.json",
     "files": [
         {
-            "date": 1776442076447,
-            "name": "D:\\code\\.vscode\\melodai\\melodai\\backend\\logs\\error-2026-04-17.log",
-            "hash": "fc46245e1d002af7cdd013080e9b22608e1b0b18d1c30bb1f1b89818ea4b2881"
-        },
-        {
-            "date": 1776454942659,
-            "name": "D:\\code\\.vscode\\melodai\\melodai\\backend\\logs\\error-2026-04-18.log",
-            "hash": "fcfbd3fc0555283d962a7034ed24ae3156e531fc6390fa4fd6e48d4dbe1156d0"
+            "date": 1780137716664,
+            "name": "D:\\code\\.vscode\\melodai\\melodai\\backend\\logs\\error-2026-05-30.log",
+            "hash": "d66bd35e6f4285a4bc438219a5194bfe0a2b4704d390d9ca4f285c049f8141de"
         }
     ],
     "hashType": "sha256"
