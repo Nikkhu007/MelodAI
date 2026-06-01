@@ -167,8 +167,8 @@ exports.smartSearch = async (req, res) => {
         query:      q,
         candidate_ids: textResults.map(s => s._id.toString()),
         ai_profile: {
-          genre_weights: Object.fromEntries(req.user.aiProfile?.genreWeights || new Map()),
-          mood_weights:  Object.fromEntries(req.user.aiProfile?.moodWeights  || new Map()),
+          genre_weights: req.user.aiProfile?.genreWeights || {},
+          mood_weights:  req.user.aiProfile?.moodWeights || {},
         },
       }, { timeout: 6000 });
 
