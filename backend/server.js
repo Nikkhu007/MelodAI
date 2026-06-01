@@ -58,8 +58,10 @@ const lyricsRoutes      = require('./routes/lyrics')
 
 // YouTube only in development
 let youtubeRoutes = null
-if (process.env.NODE_ENV !== 'production') {
-  try { youtubeRoutes = require('./routes/youtube') } catch (e) { logger.warn('YouTube routes not loaded') }
+try {
+  youtubeRoutes = require('./routes/youtube')
+} catch (e) {
+  logger.warn('YouTube routes not loaded')
 }
 
 // ── Ensure logs directory ────────────────────────────────────────────────────
