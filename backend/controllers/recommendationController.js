@@ -31,8 +31,8 @@ exports.getHomeFeed = async (req, res) => {
     const aiRes = await axios.post(`${AI_URL}/recommend`, {
       user_id:    user._id.toString(),
       ai_profile: {
-        genre_weights:     Object.fromEntries(user.aiProfile?.genreWeights || new Map()),
-        mood_weights:      Object.fromEntries(user.aiProfile?.moodWeights  || new Map()),
+        genre_weights:     user.aiProfile?.genreWeights || {},
+        mood_weights:      user.aiProfile?.moodWeights || {},
         tempo_preference:  user.aiProfile?.tempoPreference || 120,
       },
       listened_ids:  listenedIds,
@@ -49,7 +49,7 @@ exports.getHomeFeed = async (req, res) => {
   } catch (_) {}
 
   // DB fallback — personalised by mood/genre weights
-  const genreWeights = Object.fromEntries(user.aiProfile?.genreWeights || new Map());
+  const genreWeights = user.aiProfile?.genreWeights || {};
   const topGenre     = Object.entries(genreWeights).sort((a,b) => b[1]-a[1])[0]?.[0];
   const moodFilter   = user.currentMood ? { mood: user.currentMood } : {};
 
@@ -112,13 +112,13 @@ exports.getMoodRecommendations = async (req, res) => {
 
   // Try AI first
   try {
-    const aiRes = await axios.post(`${AI_URL}/mood-recommend`, {
+const aiRes = await axios.post(`${AI_URL}/mood-recommend`, {
       user_id:    user._id.toString(),
       mood,
-      ai_profile: { genre_weights: Object.fromEntries(user.aiProfile?.genreWeights || new Map()) },
+      ai_profile: { genre_weights: user.aiProfile?.genreWeights || {},
       limit:      20,
-    }, { timeout: 8000 });
-
+    },  timeout: 8000 });
+  
     const songIds = aiRes.data?.recommendations || [];
     if (songIds.length) {
       const songs   = await Song.find({ _id: { $in: songIds } });

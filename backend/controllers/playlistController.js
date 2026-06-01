@@ -210,8 +210,8 @@ exports.generateAIPlaylist = async (req, res) => {
       user_id:    user._id.toString(),
       mood:       moodToUse,
       ai_profile: {
-        genre_weights: Object.fromEntries(user.aiProfile?.genreWeights || new Map()),
-        mood_weights:  Object.fromEntries(user.aiProfile?.moodWeights  || new Map()),
+        genre_weights:user.aiProfile?.genreWeights || {},
+        mood_weights:  user.aiProfile?.moodWeights || {},
       },
       limit: 20,
     }, { timeout: 8000 })
@@ -226,7 +226,7 @@ exports.generateAIPlaylist = async (req, res) => {
     let songs    = await Song.find(filter).sort({ plays: -1, likes: -1 }).limit(30)
     if (!songs.length) songs = await Song.find({ isPublic: true }).sort({ plays: -1 }).limit(20)
 
-    const genreWeights = Object.fromEntries(user.aiProfile?.genreWeights || new Map())
+    const genreWeights = user.aiProfile?.genreWeights || {}
     const topGenre     = Object.entries(genreWeights).sort((a,b) => b[1]-a[1])[0]?.[0]
     if (topGenre) songs.sort((a,b) => (b.genre === topGenre ? 1 : 0) - (a.genre === topGenre ? 1 : 0))
 
