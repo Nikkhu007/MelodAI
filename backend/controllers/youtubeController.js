@@ -13,10 +13,19 @@ async function getCachedAudioUrl(videoId) {
   const cached = urlCache.get(videoId)
   if (cached && cached.expiry > Date.now()) return cached.url
 
- const cmd = `yt-dlp --cookies ./cookies.txt "https://www.youtube.com/watch?v=${videoId}" --get-url -f 140`
+  const cmd = `yt-dlp --cookies ./cookies.txt "https://www.youtube.com/watch?v=${videoId}" --get-url -f 140`
+
+  const { stdout } = await execAsync(cmd, { timeout: 25000 })
+
   const url = stdout.trim().split('\n')[0]
+
   if (!url) throw new Error('No audio URL returned')
-  urlCache.set(videoId, { url, expiry: Date.now() + 5 * 60 * 60 * 1000 })
+
+  urlCache.set(videoId, {
+    url,
+    expiry: Date.now() + 5 * 60 * 60 * 1000
+  })
+
   return url
 }
 
